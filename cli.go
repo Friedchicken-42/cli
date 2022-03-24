@@ -25,7 +25,7 @@ type Command struct {
 	Commands  Commands
 	Arguments Args
 	Options   Options
-	Context   *Context
+	context   *Context
 	Action    func(c *Context) error
 }
 
@@ -34,66 +34,66 @@ type Commands []*Command
 type App Command
 
 func (c *Context) Get(name string) (string, bool) {
-    if v, ok := c.Args[name]; ok {
-        return v, ok
-    }
+	if v, ok := c.Args[name]; ok {
+		return v, ok
+	}
 
-    if ok := c.Flags[name]; ok {
-        return "", ok
-    }
+	if ok := c.Flags[name]; ok {
+		return "", ok
+	}
 
-    return "", false
+	return "", false
 }
 
-func (c *Command) ShareContext(context *Context) {
-	c.Context = context
+func (c *Command) shareContext(context *Context) {
+	c.context = context
 	for i := range c.Commands {
-		c.Commands[i].ShareContext(context)
+		c.Commands[i].shareContext(context)
 	}
 }
 
-func (c *Command) SetArg(key, value string) {
-	c.Context.Args[key] = value
+func (c *Command) setArg(key, value string) {
+	c.context.Args[key] = value
 }
 
-func (c *Command) FindOption(name string) *Option {
+func (c *Command) findOption(name string) *Option {
 	for i := range c.Options {
 		if c.Options[i].Prompt == name {
 			return c.Options[i]
 		}
-        if c.Options[i].Short == rune(name[0]) {
-            return c.Options[i]
-        }
-        if c.Options[i].Name == name {
-            return c.Options[i]
-        }
+		if c.Options[i].Short == rune(name[0]) {
+			return c.Options[i]
+		}
+		if c.Options[i].Name == name {
+			return c.Options[i]
+		}
 	}
 	return nil
 }
 
-func (c *Command) GetOption(name string) *Option {
-    if name[1] == '-' {
-        return c.FindOption(name[2:])
-    }
-    return c.FindOption(name[1:])
+func (c *Command) getOption(name string) *Option {
+	if name[1] == '-' {
+		return c.findOption(name[2:])
+	}
+	return c.findOption(name[1:])
 }
 
-func (c *Command) SetOption(name, value string) {
-	c.Context.Args[name] = value
+func (c *Command) setOption(name, value string) {
+	c.context.Args[name] = value
 }
 
-func (c *Command) SetFlag(name string) {
-	c.Context.Flags[name] = true
+func (c *Command) setFlag(name string) {
+	c.context.Flags[name] = true
 }
 
-func (c *Command) SetArgs(args []string) error {
+func (c *Command) setArgs(args []string) error {
 	a := 0
 
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
 
 		if arg[0] == '-' {
-			option := c.GetOption(arg)
+			option := c.getOption(arg)
 
 			if option == nil {
 				return errors.New("missing option: " + arg)
@@ -114,16 +114,16 @@ func (c *Command) SetArgs(args []string) error {
 				i++
 				value := args[i]
 
-				c.SetOption(name, value)
+				c.setOption(name, value)
 			} else {
-				c.SetFlag(name)
+				c.setFlag(name)
 			}
 
 		} else {
-            if a == len(c.Arguments) {
-                break
-            }
-			c.SetArg(c.Arguments[a], arg)
+			if a == len(c.Arguments) {
+				break
+			}
+			c.setArg(c.Arguments[a], arg)
 			a++
 		}
 	}
@@ -135,7 +135,7 @@ func (c *Command) SetArgs(args []string) error {
 	return nil
 }
 
-func (c Command) Get(name string) (*Command, error) {
+func (c Command) get(name string) (*Command, error) {
 	for i := range c.Commands {
 		if c.Commands[i].Name == name {
 			return c.Commands[i], nil
@@ -144,17 +144,24 @@ func (c Command) Get(name string) (*Command, error) {
 	return nil, errors.New("command not found: " + name)
 }
 
-func (c *Command) Search(args []string) (*Command, []string, error) {
-    if len(args) == 0 {
-        return c, nil, nil
-    }
+func (c *Command) search(args []string) (*Command, []string, error) {
+	if len(args) == 0 {
+		return c, nil, nil
+	}
 
-	command, err := c.Get(args[0])
+	command, err := c.get(args[0])
 	if err == nil {
-		return command.Search(args[1:])
+		return command.search(args[1:])
 	}
 
 	return c, args, nil
+}
+
+func (a *App) search(args []string) (*Command, []string, error) {
+	c := Command(*a)
+	command := &c
+
+	return command.search(args)
 }
 
 func (a *App) shareContext() {
@@ -162,29 +169,22 @@ func (a *App) shareContext() {
 	context.Args = make(map[string]string)
 	context.Flags = make(map[string]bool)
 
-	a.Context = context
+	a.context = context
 
 	for i := range a.Commands {
-		a.Commands[i].ShareContext(context)
+		a.Commands[i].shareContext(context)
 	}
-}
-
-func (a *App) Search(args []string) (*Command, []string, error) {
-	c := Command(*a)
-	command := &c
-
-	return command.Search(args)
 }
 
 func (a *App) Run(args []string) error {
 	a.shareContext()
 
-	command, args, err := a.Search(args[1:])
+	command, args, err := a.search(args[1:])
 	if err != nil {
 		return err
 	}
 
-	err = command.SetArgs(args)
+	err = command.setArgs(args)
 	if err != nil {
 		return err
 	}
@@ -193,5 +193,5 @@ func (a *App) Run(args []string) error {
 		return errors.New("missing action for command " + command.Name)
 	}
 
-	return command.Action(command.Context)
+	return command.Action(command.context)
 }
