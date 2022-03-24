@@ -90,3 +90,24 @@ func TestGlobalFlags(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestOptionName(t *testing.T) {
+    app := App{
+        Options: Options{
+            &Option{
+                Name: "test",
+            },
+        },
+        Action: func(c *Context) error {
+            if v, ok := c.Get("test"); !ok || v != "a" {
+                return errors.New("wrong option")
+            }
+            return nil
+        },
+    }
+
+    err := app.Run([]string{"", "--test", "a", "b"})
+    if err != nil {
+        t.Fatal(err)
+    }
+}

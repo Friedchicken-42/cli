@@ -56,29 +56,26 @@ func (c *Command) SetArg(key, value string) {
 	c.Context.Args[key] = value
 }
 
-func (c *Command) FindOptionPrompt(name string) *Option {
+func (c *Command) FindOption(name string) *Option {
 	for i := range c.Options {
 		if c.Options[i].Prompt == name {
 			return c.Options[i]
 		}
-	}
-	return nil
-}
-
-func (c *Command) FindOptionShort(name rune) *Option {
-	for i := range c.Options {
-		if c.Options[i].Short == name {
-			return c.Options[i]
-		}
+        if c.Options[i].Short == rune(name[0]) {
+            return c.Options[i]
+        }
+        if c.Options[i].Name == name {
+            return c.Options[i]
+        }
 	}
 	return nil
 }
 
 func (c *Command) GetOption(name string) *Option {
-	if name[1] == '-' {
-		return c.FindOptionPrompt(name[2:])
-	}
-	return c.FindOptionShort(rune(name[1]))
+    if name[1] == '-' {
+        return c.FindOption(name[2:])
+    }
+    return c.FindOption(name[1:])
 }
 
 func (c *Command) SetOption(name, value string) {
@@ -123,6 +120,9 @@ func (c *Command) SetArgs(args []string) error {
 			}
 
 		} else {
+            if a == len(c.Arguments) {
+                break
+            }
 			c.SetArg(c.Arguments[a], arg)
 			a++
 		}
