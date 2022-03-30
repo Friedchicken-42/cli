@@ -111,3 +111,30 @@ func TestOptionName(t *testing.T) {
         t.Fatal(err)
     }
 }
+
+func TestHelp(t *testing.T) {
+    app := App{
+        Options: Options{
+           &Option{
+            	Name:   "verbose",
+            	Prompt: "verbose",
+            	Short:  'v',
+            	IsFlag: true,
+            },
+            &Option{
+                Name: "name",
+                Prompt: "name",
+                Short: 'n',
+            },
+        },
+        Arguments: Args{"a", "b"},
+        Action: func(c *Context) error {
+            return nil
+        },
+    }
+
+    err := app.Run([]string{"app", "-h"})
+    if err != nil {
+        t.Fatal(err)
+    }
+}

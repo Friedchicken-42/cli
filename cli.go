@@ -2,6 +2,7 @@
 
 import (
 	"errors"
+	"fmt"
 )
 
 type Context struct {
@@ -45,6 +46,10 @@ func (c *Context) Get(name string) (string, bool) {
 	return "", false
 }
 
+func (c *Context) size() int {
+    return len(c.Args) + len(c.Flags)
+}
+
 func (c *Command) shareContext(context *Context) {
 	c.context = context
 	for i := range c.Commands {
@@ -57,6 +62,15 @@ func (c *Command) setArg(key, value string) {
 }
 
 func (c *Command) findOption(name string) *Option {
+    if name == "help" || name == "h" {
+        return &Option{
+        	Name:   "help",
+        	Prompt: "help",
+        	Short:  'h',
+        	IsFlag: true,
+        }
+    }
+
 	for i := range c.Options {
 		if c.Options[i].Prompt == name {
 			return c.Options[i]
@@ -129,7 +143,9 @@ func (c *Command) setArgs(args []string) error {
 	}
 
 	if len(c.Arguments) != a {
-		return errors.New("mismatcing arguments")
+        if _, h := c.context.Get("help"); !h {
+            return errors.New("mismatcing arguments")
+        }
 	}
 
 	return nil
@@ -157,11 +173,61 @@ func (c *Command) search(args []string) (*Command, []string, error) {
 	return c, args, nil
 }
 
+func (c *Command) printHelp() {
+    fmt.Printf("Usage: %s", c.Name)
+
+    if len(c.Options) > 0 {
+        fmt.Printf(" [options]")
+    }
+
+    for _, arg := range c.Arguments {
+        fmt.Printf(" <%s>", arg)
+    }
+
+    if len(c.Options) > 0 {
+        fmt.Printf("\n\n")
+        fmt.Printf("Options:\n")
+    }
+    for _, option := range c.Options {
+        fmt.Printf("\t")
+        if option.Short != 0 {
+            fmt.Printf("-%c", option.Short)
+        }
+        if option.Short != 0 && option.Prompt != "" {
+            fmt.Printf(" | ")
+        }
+        if option.Prompt != "" {
+            fmt.Printf("--%s", option.Prompt)
+        }
+
+        if !option.IsFlag {
+            fmt.Printf(" = <%s>", option.Name)
+        }
+        fmt.Printf("\n")
+    }
+
+    if len(c.Commands) > 0 {
+        fmt.Printf("\n")
+        fmt.Printf("Subcommands:\n")
+    }
+    for _, command := range c.Commands {
+        fmt.Printf("\t%s\n", command.Name)
+    }
+    fmt.Printf("\n")
+}
+
 func (a *App) search(args []string) (*Command, []string, error) {
 	c := Command(*a)
 	command := &c
 
 	return command.search(args)
+}
+
+func (a *App) printHelp() {
+    c := Command(*a)
+    command := &c
+
+    command.printHelp()
 }
 
 func (a *App) shareContext() {
@@ -177,6 +243,10 @@ func (a *App) shareContext() {
 }
 
 func (a *App) Run(args []string) error {
+    if a.Name == "" {
+        a.Name = "app"
+    }
+
 	a.shareContext()
 
 	command, args, err := a.search(args[1:])
@@ -188,6 +258,11 @@ func (a *App) Run(args []string) error {
 	if err != nil {
 		return err
 	}
+
+    if _, h := a.context.Get("help"); h && a.context.size() == 1 {
+        a.printHelp()
+        return nil
+    }
 
 	if command.Action == nil {
 		return errors.New("missing action for command " + command.Name)
