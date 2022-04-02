@@ -260,7 +260,7 @@ func (a *App) Run(args []string) error {
 	}
 
     if _, h := a.context.Get("help"); h && a.context.size() == 1 {
-        a.printHelp()
+        command.printHelp()
         return nil
     }
 
